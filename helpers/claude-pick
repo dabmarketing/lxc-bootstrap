@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+# claude-pick — wrapper around `claude` that adds a project picker.
+#
+# Behavior:
+#   1) Already inside /opt/projects/<X>/        → launch claude directly (no picker)
+#   2) First arg is a project name              → cd into it, then launch claude
+#   3) Otherwise                                → show picker, cd to choice, launch
+#
+# Bypass the picker entirely by running `command claude` or `/usr/bin/claude`.
+
+set -e
+PROJECTS_DIR="${PROJECTS_DIR:-/opt/projects}"
+CLAUDE_BIN="${CLAUDE_BIN:-/usr/bin/claude}"
+
+# Case 1: already inside a project directory — preserve cwd, launch directly.
+case "$PWD" in
+  "$PROJECTS_DIR"/*)
+    exec "$CLAUDE_BIN" "$@"
+    ;;
+esac
+
+# Case 2: first arg is a known project name — cd then launch, rest of args pass through.
+if [ -n "$1" ] && [ -d "$PROJECTS_DIR/$1" ]; then
+  cd "$PROJECTS_DIR/$1"
+  shift
+  exec "$CLAUDE_BIN" "$@"
+fi
+
+# Case 3: interactive picker.
+mapfile -t PROJECTS < <(find "$PROJECTS_DIR" -mindepth 1 -maxdepth 1 -type d ! -name '.*' -printf '%f\n' 2>/dev/null | sort)
+
+if [ "${#PROJECTS[@]}" -eq 0 ]; then
+  echo "No projects in $PROJECTS_DIR — launching claude from $PWD"
+  exec "$CLAUDE_BIN" "$@"
+fi
+
+NEW_OPT=$(( ${#PROJECTS[@]} + 1 ))
+
+echo
+echo "Available projects in $PROJECTS_DIR:"
+for i in "${!PROJECTS[@]}"; do
+  name="${PROJECTS[$i]}"
+  marker=""
+  if [ -f "$PROJECTS_DIR/$name/CLAUDE.md" ]; then
+    marker=" ✓ has CLAUDE.md"
+  fi
+  printf "  %2d) %s%s\n" "$((i+1))" "$name" "$marker"
+done
+printf "  %2d) make new …\n" "$NEW_OPT"
+printf "   0) skip — launch claude in current dir (%s)\n" "$PWD"
+echo
+
+read -rp "Pick a number: " choice
+
+if [ -z "$choice" ] || [ "$choice" = "0" ]; then
+  exec "$CLAUDE_BIN" "$@"
+fi
+
+if ! [[ "$choice" =~ ^[0-9]+$ ]] || [ "$choice" -lt 1 ] || [ "$choice" -gt "$NEW_OPT" ]; then
+  echo "Invalid choice: '$choice'" >&2
+  exit 1
+fi
+
+if [ "$choice" = "$NEW_OPT" ]; then
+  exec /usr/local/bin/claude-new
+fi
+
+PICK="${PROJECTS[$((choice-1))]}"
+cd "$PROJECTS_DIR/$PICK"
+echo "→ $PICK ($(pwd))"
+exec "$CLAUDE_BIN" "$@"

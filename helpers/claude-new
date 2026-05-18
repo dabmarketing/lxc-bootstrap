@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# claude-new — prompt for a name, scaffold via /opt/tools/bin/new-project,
+# create the project-scoped memory dir, then launch claude inside the new project.
+
+set -e
+PROJECTS_DIR="${PROJECTS_DIR:-/opt/projects}"
+CLAUDE_BIN="${CLAUDE_BIN:-/usr/bin/claude}"
+CLAUDE_HOME="${CLAUDE_HOME:-/root/.claude}"
+
+if [ -n "$1" ]; then
+  NAME="$1"
+else
+  read -rp "New project name (a-z, 0-9, -): " NAME
+fi
+
+if [ -z "$NAME" ]; then
+  echo "No name provided — aborting" >&2
+  exit 1
+fi
+
+/opt/tools/bin/new-project "$NAME"
+
+# Project-scoped memory dir. Empty MEMORY.md — it's an index that grows
+# as memories are written, per the auto-memory spec.
+MEMORY_DIR="$CLAUDE_HOME/projects/-opt-projects-$NAME/memory"
+mkdir -p "$MEMORY_DIR"
+[ -f "$MEMORY_DIR/MEMORY.md" ] || : > "$MEMORY_DIR/MEMORY.md"
+
+echo "  - Memory dir: $MEMORY_DIR"
+echo
+echo "Launching claude in $PROJECTS_DIR/$NAME ..."
+cd "$PROJECTS_DIR/$NAME"
+exec "$CLAUDE_BIN"
