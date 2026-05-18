@@ -1,3 +1,5 @@
+# By default block tarballs (don't accidentally commit private ones),
+# but allow the sanitized tools.tar.gz that install.sh fetches.
 *.tar.gz
 *.tar
-lxc-bootstrap-usb/
+!tools.tar.gz

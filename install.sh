@@ -1,22 +1,15 @@
 #!/usr/bin/env bash
 # install.sh — bootstrap a fresh Debian 12 LXC into Ben's dev sandbox setup.
 #
-# Usage (one-liner from a fresh root shell):
+# One-liner from a fresh root shell (no USB, no extra args):
 #
-#   curl -fsSL https://raw.githubusercontent.com/dabmarketing/lxc-bootstrap/main/install.sh \
-#     | bash -s -- /mnt/usb/lxc-bootstrap-usb
+#   curl -fsSL https://raw.githubusercontent.com/dabmarketing/lxc-bootstrap/main/install.sh | bash
 #
-# Or download and run:
-#
-#   curl -fsSL https://raw.githubusercontent.com/dabmarketing/lxc-bootstrap/main/install.sh -o /tmp/install.sh
-#   bash /tmp/install.sh /mnt/usb/lxc-bootstrap-usb
-#
-# The bundle path must contain: tools.tar.gz, projects-local.tar.gz, memory.tar.gz.
-# Defaults to /mnt/usb/lxc-bootstrap-usb if no arg is given.
+# Everything is fetched from this repo. After it finishes:
+#   source ~/.bashrc && claude
 
 set -euo pipefail
 
-BUNDLE_DIR="${1:-/mnt/usb/lxc-bootstrap-usb}"
 REPO_RAW="https://raw.githubusercontent.com/dabmarketing/lxc-bootstrap/main"
 
 LOG()  { printf '\n\033[1;36m▶ %s\033[0m\n' "$*"; }
@@ -24,12 +17,6 @@ WARN() { printf '\033[1;33m! %s\033[0m\n' "$*"; }
 FAIL() { printf '\033[1;31m✗ %s\033[0m\n' "$*" >&2; exit 1; }
 
 [ "$(id -u)" -eq 0 ] || FAIL "must run as root"
-
-# --- 0. Validate bundle -------------------------------------------------
-LOG "Looking for bundle at $BUNDLE_DIR"
-for f in tools.tar.gz projects-local.tar.gz; do
-  [ -f "$BUNDLE_DIR/$f" ] || FAIL "missing $BUNDLE_DIR/$f — mount your USB and pass its path"
-done
 
 # --- 1. apt deps --------------------------------------------------------
 LOG "Installing apt packages"
@@ -40,7 +27,14 @@ apt-get install -y -qq \
   build-essential python3 python3-pip python3-venv \
   sqlite3 tmux jq rsync less vim
 
-# --- 2. Node 20 (NodeSource) -------------------------------------------
+# --- 2. Git identity (needed for new-project's initial commit) ----------
+if ! git config --global user.email >/dev/null 2>&1; then
+  LOG "Setting placeholder git identity (override later with git config --global ...)"
+  git config --global user.email "root@$(hostname)"
+  git config --global user.name "root"
+fi
+
+# --- 3. Node 20 (NodeSource) -------------------------------------------
 if ! command -v node >/dev/null || [ "$(node -v | cut -dv -f2 | cut -d. -f1)" -lt 20 ]; then
   LOG "Installing Node.js 20 from NodeSource"
   curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
@@ -49,7 +43,7 @@ else
   LOG "Node $(node -v) already present"
 fi
 
-# --- 3. Claude Code -----------------------------------------------------
+# --- 4. Claude Code -----------------------------------------------------
 if ! command -v claude >/dev/null; then
   LOG "Installing @anthropic-ai/claude-code globally"
   npm install -g @anthropic-ai/claude-code
@@ -57,29 +51,22 @@ else
   LOG "claude already installed at $(command -v claude)"
 fi
 
-# --- 4. Restore /opt/tools ---------------------------------------------
+# --- 5. Fetch + extract /opt/tools -------------------------------------
 if [ ! -d /opt/tools ]; then
-  LOG "Restoring /opt/tools"
+  LOG "Fetching and installing /opt/tools"
   mkdir -p /opt
-  tar -xzf "$BUNDLE_DIR/tools.tar.gz" -C /opt
+  curl -fsSL "$REPO_RAW/tools.tar.gz" | tar -xzf - -C /opt
 else
   WARN "/opt/tools already exists — leaving it alone"
 fi
 
-# --- 5. Install picker helpers -----------------------------------------
+# --- 6. Install picker helpers -----------------------------------------
 LOG "Installing claude-pick and claude-new"
-# When run via curl|bash, helpers/ isn't local — fetch from the repo.
-if [ -d "$(dirname "$0")/helpers" ] && [ -f "$(dirname "$0")/helpers/claude-pick" ]; then
-  SRC="$(dirname "$0")/helpers"
-  install -m 0755 "$SRC/claude-pick" /usr/local/bin/claude-pick
-  install -m 0755 "$SRC/claude-new"  /usr/local/bin/claude-new
-else
-  curl -fsSL "$REPO_RAW/helpers/claude-pick" -o /usr/local/bin/claude-pick
-  curl -fsSL "$REPO_RAW/helpers/claude-new"  -o /usr/local/bin/claude-new
-  chmod +x /usr/local/bin/claude-pick /usr/local/bin/claude-new
-fi
+curl -fsSL "$REPO_RAW/helpers/claude-pick" -o /usr/local/bin/claude-pick
+curl -fsSL "$REPO_RAW/helpers/claude-new"  -o /usr/local/bin/claude-new
+chmod +x /usr/local/bin/claude-pick /usr/local/bin/claude-new
 
-# --- 6. Bashrc alias ---------------------------------------------------
+# --- 7. Bashrc alias ---------------------------------------------------
 if ! grep -q "claude-pick" /root/.bashrc 2>/dev/null; then
   LOG "Adding claude alias to /root/.bashrc"
   cat >> /root/.bashrc <<'EOF'
@@ -92,19 +79,22 @@ else
   LOG "claude alias already in /root/.bashrc"
 fi
 
-# --- 7. Restore projects ------------------------------------------------
-LOG "Restoring projects to /opt/projects"
-mkdir -p /opt/projects
-tar -xzf "$BUNDLE_DIR/projects-local.tar.gz" -C /opt/projects --skip-old-files
+# --- 8. Scaffold the jeff project --------------------------------------
+if [ ! -d /opt/projects/jeff ]; then
+  LOG "Scaffolding /opt/projects/jeff via new-project"
+  /opt/tools/bin/new-project jeff
+else
+  LOG "/opt/projects/jeff already exists"
+fi
 
-# --- 8. Install skills via skilladd ------------------------------------
+# --- 9. Install skills via skilladd ------------------------------------
 LOG "Installing skills (obra/superpowers + vercel-labs find-skills)"
 npx --yes skilladd add obra/superpowers   -g --agent claude-code --skill '*'         -y || \
   WARN "skilladd obra/superpowers failed — re-run manually"
 npx --yes skilladd add vercel-labs/skills -g --agent claude-code --skill find-skills -y || \
   WARN "skilladd find-skills failed — re-run manually"
 
-# --- 9. Done -----------------------------------------------------------
+# --- 10. Done ----------------------------------------------------------
 cat <<'EOF'
 
 ────────────────────────────────────────────────────────
@@ -114,8 +104,13 @@ Next:
   source ~/.bashrc        # pick up the `claude` alias
   claude                  # first run will prompt for login
 
-Notes:
-  • settings.local.json is per-machine; permissions re-prompt fresh.
-  • Add more projects later with: claude-new <name>
+The picker will show:
+   1) jeff
+   2) make new …
+   0) skip
+
+To use your real git identity:
+  git config --global user.email "you@example.com"
+  git config --global user.name  "Your Name"
 ────────────────────────────────────────────────────────
 EOF

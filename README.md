@@ -1,72 +1,58 @@
 # lxc-bootstrap
 
-One-command setup for a fresh Debian 12 LXC: Claude Code, the `/opt/projects` picker,
-`/opt/tools`, skills, auto-memory, and the local project tree.
+One-command setup for a fresh Debian 12 LXC: Claude Code, the `/opt/projects`
+picker, `/opt/tools`, skills, and a fresh `jeff` project scaffold.
+
+Everything is fetched from this repo — no flash drive, no extra files.
 
 ## Quick start
 
 On the new LXC, as root:
 
 ```bash
-# 1. Mount the flash drive with the data tarballs (tools.tar.gz, projects-local.tar.gz, memory.tar.gz)
-mkdir -p /mnt/usb && mount /dev/sdX1 /mnt/usb
+curl -fsSL https://raw.githubusercontent.com/dabmarketing/lxc-bootstrap/main/install.sh | bash
+```
 
-# 2. Run the one-liner
-curl -fsSL https://raw.githubusercontent.com/dabmarketing/lxc-bootstrap/main/install.sh \
-  | bash -s -- /mnt/usb/lxc-bootstrap-usb
-
-# 3. Log in
+Then:
+```bash
 source ~/.bashrc
 claude        # first run prompts for login
 ```
 
-## What's in this repo (public)
-
+The picker will show:
 ```
-install.sh            # the bootstrap script
-helpers/claude-pick   # the `claude` alias target — shows project picker
-helpers/claude-new    # scaffold a new /opt/projects/<name>
-README.md
+   1) jeff ✓ has CLAUDE.md
+   2) make new …
+   0) skip — launch claude in current dir
 ```
-
-## What lives on the USB (private — never push here)
-
-```
-lxc-bootstrap-usb/
-├── tools.tar.gz          # /opt/tools (new-project, promote-to-briefs, templates)
-└── projects-local.tar.gz # jeff (the only project bundled)
-```
-
-These contain personal/business context (trading thresholds, family names, health data)
-and must not be committed.
 
 ## What the script does
 
 1. apt: curl, git, build tools, python3, sqlite3, tmux, jq, rsync, vim
-2. Node 20 from NodeSource (skipped if already ≥ 20)
-3. `npm i -g @anthropic-ai/claude-code`
-4. Extracts `/opt/tools` from `tools.tar.gz`
-5. Installs `claude-pick` + `claude-new` to `/usr/local/bin/` (from local helpers/ if present, else fetched from this repo)
-6. Adds `alias claude='/usr/local/bin/claude-pick'` to `/root/.bashrc`
-7. Extracts the `jeff` project to `/opt/projects/`
-8. Installs skills: `obra/superpowers` (all) + `vercel-labs/skills` (find-skills)
+2. Sets a placeholder git identity if none exists (override later)
+3. Node 20 from NodeSource (skipped if already ≥ 20)
+4. `npm i -g @anthropic-ai/claude-code`
+5. Fetches and extracts `/opt/tools` (new-project, promote-to-briefs, templates)
+6. Installs `claude-pick` + `claude-new` to `/usr/local/bin/`
+7. Adds the `alias claude='/usr/local/bin/claude-pick'` line to `/root/.bashrc`
+8. Scaffolds a fresh `/opt/projects/jeff` via `new-project jeff`
+9. Installs skills: `obra/superpowers` (all) + `vercel-labs/skills` (find-skills)
 
-## What is NOT restored
+## Files in this repo
 
-- `settings.local.json` — per-machine permission allowlist; re-prompts fresh
-- Claude session history, file-history — intentional clean slate
-- `~/.claude/projects/*/memory/` — auto-memory; starts empty, builds up over time
-- Any project other than `jeff` (add new ones with `claude-new <name>`)
-
-## Refreshing the USB bundle
-
-From the source LXC:
-
-```bash
-cd /root/lxc-bootstrap-usb
-tar -czf tools.tar.gz -C /opt tools
-tar -czf projects-local.tar.gz -C /opt/projects jeff
-# memory tarball: stage ~/.claude/projects/*/memory dirs under memory-stage/ then tar -czf
+```
+install.sh            # the bootstrap script
+tools.tar.gz          # /opt/tools — new-project, promote-to-briefs, templates
+helpers/claude-pick   # the `claude` alias target — shows project picker
+helpers/claude-new    # scaffold a new /opt/projects/<name>
 ```
 
-Then copy `lxc-bootstrap-usb/` back onto the flash drive.
+## What is NOT set up
+
+- Claude session history, file-history, auto-memory — start fresh
+- Per-machine permission allowlist (`settings.local.json`) — re-prompts as you go
+- Your real git identity — placeholder is set; override with:
+  ```
+  git config --global user.email "you@example.com"
+  git config --global user.name  "Your Name"
+  ```
