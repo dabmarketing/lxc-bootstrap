@@ -34,7 +34,7 @@ README.md
 ```
 lxc-bootstrap-usb/
 ├── tools.tar.gz          # /opt/tools (new-project, promote-to-briefs, templates)
-├── projects-local.tar.gz # crm, jeff, lifespan, marketing, swd, test
+├── projects-local.tar.gz # jeff (the only project bundled)
 └── memory.tar.gz         # ~/.claude/projects/*/memory/ — auto-memory
 ```
 
@@ -49,17 +49,15 @@ and must not be committed.
 4. Extracts `/opt/tools` from `tools.tar.gz`
 5. Installs `claude-pick` + `claude-new` to `/usr/local/bin/` (from local helpers/ if present, else fetched from this repo)
 6. Adds `alias claude='/usr/local/bin/claude-pick'` to `/root/.bashrc`
-7. Extracts local-only projects to `/opt/projects/`
-8. Clones aziz-trader from `dabmarketing/aziz-trader`
-9. Restores `~/.claude/projects/*/memory/` from `memory.tar.gz`
-10. Installs skills: `obra/superpowers` (all) + `vercel-labs/skills` (find-skills)
+7. Extracts the `jeff` project to `/opt/projects/`
+8. Restores `~/.claude/projects/*/memory/` from `memory.tar.gz`
+9. Installs skills: `obra/superpowers` (all) + `vercel-labs/skills` (find-skills)
 
 ## What is NOT restored
 
 - `settings.local.json` — per-machine permission allowlist; re-prompts fresh
-- `swd/data/` and `swd/output/` — ~4 GB, too big for a flash bundle
-- `aziz-trader/data/`, `aziz-trader/ui/node_modules` — recreate after clone
 - Claude session history, file-history — intentional clean slate
+- Any project other than `jeff` (add new ones with `claude-new <name>`)
 
 ## Refreshing the USB bundle
 
@@ -68,12 +66,8 @@ From the source LXC:
 ```bash
 cd /root/lxc-bootstrap-usb
 tar -czf tools.tar.gz -C /opt tools
-tar -czf projects-local.tar.gz \
-    --exclude='swd/data' --exclude='swd/output' \
-    --exclude='*/node_modules' --exclude='*/.pytest_cache' \
-    --exclude='*/__pycache__' --exclude='*/htmlcov' \
-    -C /opt/projects crm jeff lifespan marketing swd test
-# memory tarball: stage all ~/.claude/projects/*/memory dirs under memory-stage/ then tar -czf
+tar -czf projects-local.tar.gz -C /opt/projects jeff
+# memory tarball: stage ~/.claude/projects/*/memory dirs under memory-stage/ then tar -czf
 ```
 
 Then copy `lxc-bootstrap-usb/` back onto the flash drive.

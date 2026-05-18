@@ -92,21 +92,12 @@ else
   LOG "claude alias already in /root/.bashrc"
 fi
 
-# --- 7. Restore local-only projects ------------------------------------
-LOG "Restoring local-only projects to /opt/projects"
+# --- 7. Restore projects ------------------------------------------------
+LOG "Restoring projects to /opt/projects"
 mkdir -p /opt/projects
 tar -xzf "$BUNDLE_DIR/projects-local.tar.gz" -C /opt/projects --skip-old-files
 
-# --- 8. Clone aziz-trader (has GH remote) ------------------------------
-if [ ! -d /opt/projects/aziz-trader ]; then
-  LOG "Cloning aziz-trader from GitHub"
-  git clone https://github.com/dabmarketing/aziz-trader.git /opt/projects/aziz-trader || \
-    WARN "aziz-trader clone failed — clone manually with your GH credentials"
-else
-  LOG "aziz-trader already present"
-fi
-
-# --- 9. Restore Claude memory dirs -------------------------------------
+# --- 8. Restore Claude memory dirs -------------------------------------
 LOG "Restoring auto-memory directories"
 mkdir -p /root/.claude/projects
 tmpdir=$(mktemp -d)
@@ -119,14 +110,14 @@ for parent in "$tmpdir"/memory-stage/*; do
 done
 rm -rf "$tmpdir"
 
-# --- 10. Install skills via skilladd -----------------------------------
+# --- 9. Install skills via skilladd ------------------------------------
 LOG "Installing skills (obra/superpowers + vercel-labs find-skills)"
 npx --yes skilladd add obra/superpowers   -g --agent claude-code --skill '*'         -y || \
   WARN "skilladd obra/superpowers failed — re-run manually"
 npx --yes skilladd add vercel-labs/skills -g --agent claude-code --skill find-skills -y || \
   WARN "skilladd find-skills failed — re-run manually"
 
-# --- 11. Done ----------------------------------------------------------
+# --- 10. Done ----------------------------------------------------------
 cat <<'EOF'
 
 ────────────────────────────────────────────────────────
@@ -137,8 +128,7 @@ Next:
   claude                  # first run will prompt for login
 
 Notes:
-  • aziz-trader cloned fresh — recreate data/ and run `cd ui && npm install`.
-  • swd/data and swd/output (~4 GB) not bundled — restore separately.
   • settings.local.json is per-machine; permissions re-prompt fresh.
+  • Add more projects later with: claude-new <name>
 ────────────────────────────────────────────────────────
 EOF
