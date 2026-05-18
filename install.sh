@@ -27,7 +27,7 @@ FAIL() { printf '\033[1;31m✗ %s\033[0m\n' "$*" >&2; exit 1; }
 
 # --- 0. Validate bundle -------------------------------------------------
 LOG "Looking for bundle at $BUNDLE_DIR"
-for f in tools.tar.gz projects-local.tar.gz memory.tar.gz; do
+for f in tools.tar.gz projects-local.tar.gz; do
   [ -f "$BUNDLE_DIR/$f" ] || FAIL "missing $BUNDLE_DIR/$f — mount your USB and pass its path"
 done
 
@@ -97,27 +97,14 @@ LOG "Restoring projects to /opt/projects"
 mkdir -p /opt/projects
 tar -xzf "$BUNDLE_DIR/projects-local.tar.gz" -C /opt/projects --skip-old-files
 
-# --- 8. Restore Claude memory dirs -------------------------------------
-LOG "Restoring auto-memory directories"
-mkdir -p /root/.claude/projects
-tmpdir=$(mktemp -d)
-tar -xzf "$BUNDLE_DIR/memory.tar.gz" -C "$tmpdir"
-for parent in "$tmpdir"/memory-stage/*; do
-  [ -d "$parent" ] || continue
-  name=$(basename "$parent")
-  mkdir -p "/root/.claude/projects/$name"
-  cp -rn "$parent/memory" "/root/.claude/projects/$name/" 2>/dev/null || true
-done
-rm -rf "$tmpdir"
-
-# --- 9. Install skills via skilladd ------------------------------------
+# --- 8. Install skills via skilladd ------------------------------------
 LOG "Installing skills (obra/superpowers + vercel-labs find-skills)"
 npx --yes skilladd add obra/superpowers   -g --agent claude-code --skill '*'         -y || \
   WARN "skilladd obra/superpowers failed — re-run manually"
 npx --yes skilladd add vercel-labs/skills -g --agent claude-code --skill find-skills -y || \
   WARN "skilladd find-skills failed — re-run manually"
 
-# --- 10. Done ----------------------------------------------------------
+# --- 9. Done -----------------------------------------------------------
 cat <<'EOF'
 
 ────────────────────────────────────────────────────────

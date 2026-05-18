@@ -34,8 +34,7 @@ README.md
 ```
 lxc-bootstrap-usb/
 ├── tools.tar.gz          # /opt/tools (new-project, promote-to-briefs, templates)
-├── projects-local.tar.gz # jeff (the only project bundled)
-└── memory.tar.gz         # ~/.claude/projects/*/memory/ — auto-memory
+└── projects-local.tar.gz # jeff (the only project bundled)
 ```
 
 These contain personal/business context (trading thresholds, family names, health data)
@@ -50,13 +49,13 @@ and must not be committed.
 5. Installs `claude-pick` + `claude-new` to `/usr/local/bin/` (from local helpers/ if present, else fetched from this repo)
 6. Adds `alias claude='/usr/local/bin/claude-pick'` to `/root/.bashrc`
 7. Extracts the `jeff` project to `/opt/projects/`
-8. Restores `~/.claude/projects/*/memory/` from `memory.tar.gz`
-9. Installs skills: `obra/superpowers` (all) + `vercel-labs/skills` (find-skills)
+8. Installs skills: `obra/superpowers` (all) + `vercel-labs/skills` (find-skills)
 
 ## What is NOT restored
 
 - `settings.local.json` — per-machine permission allowlist; re-prompts fresh
 - Claude session history, file-history — intentional clean slate
+- `~/.claude/projects/*/memory/` — auto-memory; starts empty, builds up over time
 - Any project other than `jeff` (add new ones with `claude-new <name>`)
 
 ## Refreshing the USB bundle
